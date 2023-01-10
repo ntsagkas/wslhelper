@@ -1,5 +1,7 @@
 # wslhelper
 requires ansible and wsl
+https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-ansible-on-ubuntu-22-04
+
 also assumes that these are installed
 apt-get install nginx
 apt-get install mysql-server
