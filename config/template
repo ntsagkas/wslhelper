@@ -1,0 +1,18 @@
+{
+    "LOCAL_LINUX_USER": "ntsagkas",
+    "SITE_TYPE":"Wordpress",
+    "SITENAME":"mywebsite", 
+    "WP_VERSION":"latest", 
+    "PHP_VERSION":"8.1",
+    "DB_PASSWORD":"strongpassword",
+    "WP_ADMIN_EMAIL": "wordpress@codefactory.gr",
+    "WP_ADMIN_USERNAME": "admin",
+    "WP_ADMIN_PASSWORD": "strongpassword",
+    "WP_PLUGINS": [
+        {"WP_PLUGIN_NAME":"wp-mail-smtp", "WP_PLUGIN_VERSION":"latest"},
+        {"WP_PLUGIN_NAME":"wordfence", "WP_PLUGIN_VERSION":"7.8.2"},
+        {"WP_PLUGIN_NAME":"elementor", "WP_PLUGIN_VERSION":"3.9.0"},
+        {"WP_PLUGIN_NAME":"wpforms-lite", "WP_PLUGIN_VERSION":"latest"}
+    ]
+
+}

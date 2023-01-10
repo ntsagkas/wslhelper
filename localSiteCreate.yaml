@@ -1,0 +1,69 @@
+---
+- hosts: 127.0.0.1
+  connection: local
+
+  tasks:
+    - name: Create site directory
+      file:
+        path: /var/www/{{ SITENAME }}
+        state: directory
+        owner: "{{ LOCAL_LINUX_USER }}"
+        group: www-data
+        mode: 0770
+    - name: Download WordPress
+      command: "wp core download --allow-root --locale=el --path=/var/www/{{ SITENAME }} {{ '--version=' ~ WP_VERSION if WP_VERSION != 'latest' else '' }} --force"
+      register: rc1
+      failed_when: 
+        - rc1.rc == 1
+        - '"Error: WordPress files seem to already be present here." not in rc1.stderr'
+    #- debug: var=rc1.stderr    
+    - name: Create wp-config.php
+      command: 'wp core config --allow-root --path=/var/www/{{ SITENAME }} --dbname={{ SITENAME }}_db --dbuser={{ SITENAME }}_db_user --dbpass={{DB_PASSWORD}} --dbhost=localhost'
+      register: rc2
+      failed_when: 
+        - rc2.rc == 1
+        - '"file already exists." not in rc2.stderr'
+    
+    
+    - name: Change owner of the files
+      command: 'chown -R {{ LOCAL_LINUX_USER }}:www-data /var/www/{{ SITENAME }}'
+    
+    - name: Apply PHP FPM template
+      template:
+        src: localTemplates/phpfpmTemplate.j2
+        dest: /etc/php/{{ PHP_VERSION }}/fpm/pool.d/{{ SITENAME }}.conf
+    - name: stop service phpfpm
+      command: 'service php{{ PHP_VERSION }}-fpm stop'
+    - name: Restart service phpfpm
+      command: 'service php{{ PHP_VERSION }}-fpm start'
+    - name: Apply nginx template
+      template:
+        src: localTemplates/nginxSiteTemplate{{ SITE_TYPE }}.j2
+        dest: /etc/nginx/sites-enabled/{{ SITENAME }}.conf
+        force: no
+    - name: Restart service nginx
+      command: 'service nginx restart' 
+    - name: "Install ansible python3 mysql dependency"
+      apt:
+        name: python3-mysqldb
+        state: latest
+    - name: Create a new database'
+      community.mysql.mysql_db:
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+        name: '{{ SITENAME }}_db'
+        state: present
+    - name: Create database user with password and all database privileges and 'WITH GRANT OPTION'
+      community.mysql.mysql_user:
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+        name: '{{ SITENAME }}_db_user'
+        password: '{{ DB_PASSWORD }}'
+        priv: '{{ SITENAME }}_db.*:ALL,GRANT'
+        state: present         
+    - name: Install WordPress
+      command: 'wp core install --allow-root --path=/var/www/{{ SITENAME }} --url={{ SITENAME }}.localhost --title={{ SITENAME }} --admin_user={{ WP_ADMIN_USERNAME }} --admin_password={{ WP_ADMIN_PASSWORD }} --admin_email={{ WP_ADMIN_EMAIL }} --admin_user={{ WP_ADMIN_USERNAME }} --admin_password={{ WP_ADMIN_PASSWORD }} --skip-email'       
+    - name: "Install plugins"
+      command: "wp plugin install {{ item.WP_PLUGIN_NAME }} --allow-root --path=/var/www/{{ SITENAME }}  {{ '--version=' ~ item.WP_PLUGIN_VERSION if item.WP_PLUGIN_VERSION != 'latest' else '' }} --force --activate"
+      with_items: "{{ WP_PLUGINS }}"
+    - name: Update the WordPress database
+      command: 'wp core update-db --allow-root --path=/var/www/{{ SITENAME }}'
+
