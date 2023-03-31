@@ -15,3 +15,5 @@ https://make.wordpress.org/cli/handbook/guides/installing/
 
 cp config/template config/mysite.json
 sudo ansible-playbook localSiteCreate.yaml --extra-vars "@config/mysite.json"
+
+sudo ansible-playbook createDrupalSite.yaml --extra-vars "@config/mytestdrupal.json"

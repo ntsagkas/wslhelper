@@ -1,0 +1,112 @@
+---
+- hosts: 127.0.0.1
+  connection: local
+
+  tasks:
+    - name: check that the OS is ubuntu 20.04 or 22.04
+      command: 'lsb_release -a'
+      register: os_status
+      failed_when: '"Ubuntu 20.04" not in os_status.stdout and "Ubuntu 22.04" not in os_status.stdout'
+    - debug: var=os_status
+    - name: check the directory /var/www/{{ SITENAME }} does not exist already
+      command: 'ls -l /var/www/{{ SITENAME }}'
+      register: dir_status
+      failed_when: dir_status.rc == 0
+    - name: check if mysql is running
+      command: 'service mysql status'
+      register: mysql_status
+      failed_when: mysql_status.rc != 0
+    - debug: var=mysql_status  
+    - name: check if php is running
+      command: 'service php{{ PHP_VERSION }}-fpm status'
+      register: php_status
+      failed_when: php_status.rc != 0
+    - debug: var=php_status  
+    - name: check if nginx is running
+      command: 'service nginx status'
+      register: nginx_status
+      failed_when: nginx_status.rc != 0
+    - debug: var=nginx_status
+    - name: check if composer version 2.x is installed
+      command: 'composer --version'
+      register: composer_status
+      failed_when: '"Composer version 2." not in composer_status.stdout'
+    - debug: var=composer_status
+    - name: check if the user {{ LOCAL_LINUX_USER }} exists
+      command: 'id -u {{ LOCAL_LINUX_USER }}'
+      register: user_status
+      failed_when: user_status.rc != 0
+    - debug: var=user_status
+    - name: "Install ansible python3 mysql dependency"
+      apt:
+        name: python3-mysqldb
+        state: latest
+    - name: Create site directory
+      file:
+        path: /var/www/{{ SITENAME }}
+        state: directory
+        owner: "{{ LOCAL_LINUX_USER }}"
+        group: www-data
+        mode: 0770  
+    - name: Apply PHP FPM template
+      template:
+        src: localTemplates/phpfpmTemplate.j2
+        dest: /etc/php/{{ PHP_VERSION }}/fpm/pool.d/{{ SITENAME }}.conf
+    - name: stop service phpfpm
+      command: 'service php{{ PHP_VERSION }}-fpm stop'
+    - name: Restart service phpfpm
+      command: 'service php{{ PHP_VERSION }}-fpm start'
+    
+    - name: Apply nginx template
+      template:
+        src: localTemplates/nginxSiteTemplate{{ SITE_TYPE }}.j2
+        dest: /etc/nginx/sites-enabled/{{ SITENAME }}.conf
+        force: yes 
+    - name: Restart service nginx
+      command: 'service nginx restart' 
+
+    - name: Create a new database'
+      community.mysql.mysql_db:
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+        name: '{{ SITENAME }}_db'
+        state: present
+
+    - name: Create database user with password and all database privileges and 'WITH GRANT OPTION'
+      community.mysql.mysql_user:
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+        name: '{{ SITENAME }}_db_user'
+        password: '{{ DB_PASSWORD }}'
+        priv: '{{ SITENAME }}_db.*:ALL,GRANT'
+        state: present 
+    
+    - block:
+        - name: Download Drupal
+          command: "composer create-project drupal/recommended-project:{{ DRUPAL_VERSION }}.* '/var/www/{{ SITENAME }}'"
+          register: rc1
+          failed_when: 
+            - rc1.rc == 1
+            - '"Error: Drupal files seem to already be present here." not in rc1.stderr'
+        - debug: var=rc1.stderr
+        - name: Install drush for new drupal site
+          command: 'chdir=/var/www/{{ SITENAME }} composer require drush/drush:*'
+          register: rc2
+          failed_when: 
+            - rc2.rc == 1
+            - '"file already exists." not in rc2.stderr'
+        - debug: var=rc2 
+        - name: Drush install with database
+          command: "/var/www/{{ SITENAME }}/vendor/bin/drush site-install standard --db-url='mysql://{{ SITENAME }}_db_user:{{ DB_PASSWORD }}@localhost/{{ SITENAME }}_db' --site-name={{ SITENAME }} --account-mail={{ DRUPAL_ADMIN_EMAIL }} --site-mail={{ DRUPAL_ADMIN_EMAIL }} --account-pass={{ DRUPAL_ADMIN_PASSWORD }} -y"
+          register: install_drupal_db_status
+          failed_when: install_drupal_db_status.rc != 0
+        - debug: var=install_drupal_db_status
+        - name: run drush uli
+          command: "/var/www/{{ SITENAME }}/vendor/bin/drush uli"
+          register: drush_uli_status
+          failed_when: drush_uli_status.rc != 0
+        - debug: var=drush_uli_status
+      become: yes
+      become_user: '"{{ LOCAL_LINUX_USER }}"'
+
+    - name: Change owner of the files
+      command: 'chown -R {{ LOCAL_LINUX_USER }}:www-data /var/www/{{ SITENAME }}'
+  

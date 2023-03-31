@@ -16,14 +16,7 @@
       failed_when: 
         - rc1.rc == 1
         - '"Error: WordPress files seem to already be present here." not in rc1.stderr'
-    #- debug: var=rc1.stderr    
-    - name: Create wp-config.php
-      command: 'wp core config --allow-root --path=/var/www/{{ SITENAME }} --dbname={{ SITENAME }}_db --dbuser={{ SITENAME }}_db_user --dbpass={{DB_PASSWORD}} --dbhost=localhost'
-      register: rc2
-      failed_when: 
-        - rc2.rc == 1
-        - '"file already exists." not in rc2.stderr'
-    
+    #- debug: var=rc1.stderr        
     
     - name: Change owner of the files
       command: 'chown -R {{ LOCAL_LINUX_USER }}:www-data /var/www/{{ SITENAME }}'
@@ -58,7 +51,13 @@
         name: '{{ SITENAME }}_db_user'
         password: '{{ DB_PASSWORD }}'
         priv: '{{ SITENAME }}_db.*:ALL,GRANT'
-        state: present         
+        state: present  
+    - name: Create wp-config.php
+      command: 'wp core config --allow-root --path=/var/www/{{ SITENAME }} --dbname={{ SITENAME }}_db --dbuser={{ SITENAME }}_db_user --dbpass={{DB_PASSWORD}} --dbhost=localhost'
+      register: rc2
+      failed_when: 
+        - rc2.rc == 1
+        - '"file already exists." not in rc2.stderr'       
     - name: Install WordPress
       command: 'wp core install --allow-root --path=/var/www/{{ SITENAME }} --url={{ SITENAME }}.localhost --title={{ SITENAME }} --admin_user={{ WP_ADMIN_USERNAME }} --admin_password={{ WP_ADMIN_PASSWORD }} --admin_email={{ WP_ADMIN_EMAIL }} --admin_user={{ WP_ADMIN_USERNAME }} --admin_password={{ WP_ADMIN_PASSWORD }} --skip-email'       
     - name: "Install plugins"
