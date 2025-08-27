@@ -1,0 +1,10 @@
+{
+    "LOCAL_LINUX_USER": "ntsagkas",
+    "SITE_TYPE": "Drupal",
+    "SITENAME": "mytestdrupal",
+    "DRUPAL_VERSION": "10",
+    "PHP_VERSION": "8.1",
+    "DB_PASSWORD": "strongDrupalPassword123!",
+    "DRUPAL_ADMIN_EMAIL": "drupal@codefactory.gr",
+    "DRUPAL_ADMIN_PASSWORD": "adminDrupalPass456!"
+}

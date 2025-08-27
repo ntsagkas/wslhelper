@@ -3,10 +3,10 @@
   connection: local
 
   tasks:
-    - name: check that the OS is ubuntu 20.04 or 22.04
+    - name: check that the OS is ubuntu 20.04, 22.04 or 24.04
       command: 'lsb_release -a'
       register: os_status
-      failed_when: '"Ubuntu 20.04" not in os_status.stdout and "Ubuntu 22.04" not in os_status.stdout'
+      failed_when: '"Ubuntu 20.04" not in os_status.stdout and "Ubuntu 22.04" not in os_status.stdout and "Ubuntu 24.04" not in os_status.stdout'
     - debug: var=os_status
     - name: check the directory /var/www/{{ SITENAME }} does not exist already
       command: 'ls -l /var/www/{{ SITENAME }}'
